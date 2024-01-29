@@ -162,5 +162,3 @@ stringData:
   XROAD_TOKEN_PIN: "1234"
   XROAD_ADMIN_USER: "xrd"
   XROAD_ADMIN_PASSWORD: "secret"
-  XROAD_DB_PWD: "digitCoredb08"
-
