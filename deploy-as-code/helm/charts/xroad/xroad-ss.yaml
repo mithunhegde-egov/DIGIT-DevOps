@@ -147,18 +147,3 @@ spec:
     app: xroad
   type: LoadBalancer
 
----
-
-apiVersion: v1
-data:
-  password: ZGlnaXRDb3JlZGIwOA==
-  username: postgres
-kind: Secret
-metadata:
-  name: db
-  namespace: xroad
-type: Opaque
-stringData:
-  XROAD_TOKEN_PIN: "1234"
-  XROAD_ADMIN_USER: "xrd"
-  XROAD_ADMIN_PASSWORD: "secret"
