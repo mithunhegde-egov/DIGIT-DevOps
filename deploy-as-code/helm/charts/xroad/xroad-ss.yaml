@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: xroad-ss
+  namespace: xroad
+spec:
+  serviceName: xroad-service # Service name remains unchanged
+  replicas: 1 # Updated to 3 replicas
+  selector:
+    matchLabels:
+      app: xroad
+  template:
+    metadata:
+      labels:
+        app: xroad
+    spec:
+      containers:
+      - name: xroad-ss
+        image: niis/xroad-security-server-sidecar:7.4.0
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          requests:
+            memory: 8Gi 
+        env:
+        - name: XROAD_TOKEN_PIN
+          value: "1234"
+        - name: XROAD_ADMIN_USER
+          value: "xrd"
+        - name: XROAD_ADMIN_PASSWORD
+          value: "secret"
+        - name: XROAD_LOG_LEVEL
+          value: "INFO"
+        - name: XROAD_DB_HOST
+          value : "unified-dev-db.czvokiourya9.ap-south-1.rds.amazonaws.com"
+        - name: XROAD_DB_PORT
+          value: "5432" 
+        ports:
+        - containerPort: 8443
+        - containerPort: 4000
+        - containerPort: 5500
+        - containerPort: 5577
+        volumeMounts:
+        - name: xroad-config-volume
+          mountPath: /etc/xroad
+        - name: xroad-backup-volume
+          mountPath: /var/lib/xroad
+      volumes:
+      - name: xroad-config-volume
+        persistentVolumeClaim:
+          claimName: xroad-config-pvc
+      - name: xroad-backup-volume
+        persistentVolumeClaim:
+          claimName: xroad-backup-pvc
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  name: xroad-ingress
+  namespace: xroad
+spec:
+  rules:
+    - host: xroad-dev.digit.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: xroad-management-service
+                port:
+                  number: 443
+  tls:
+    - hosts:
+        - xroad-dev.digit.org
+      secretName: xroad-dev.digit.org-tls-certs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: xroad-config-pvc
+  namespace: xroad
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi # Increased to 2GB
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: xroad-backup-pvc
+  namespace: xroad
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi # Increased to 2GB
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: xroad
+  name: xroad-service
+  namespace: xroad
+spec:
+  ports:
+  - port: 4000
+    protocol: TCP 
+    targetPort: 4000
+  selector:
+    app: xroad 
+  sessionAffinity: None
+  type: ClusterIP
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: xroad
+  name: xroad-management-service
+  namespace: xroad
+spec:
+  ports:
+    - name: port-5500
+      port: 5500
+      protocol: TCP
+      targetPort: 5500
+    - name: port-5577
+      port: 5577
+      protocol: TCP
+      targetPort: 5577
+    - name: port-443
+      port: 443
+      protocol: TCP
+      targetPort: 4000
+  selector:
+    app: xroad
+  type: LoadBalancer
+
+---
+
+apiVersion: v1
+data:
+  password: ZGlnaXRDb3JlZGIwOA==
+  username: postgres
+kind: Secret
+metadata:
+  name: db
+  namespace: xroad
+type: Opaque
+stringData:
+  XROAD_TOKEN_PIN: "1234"
+  XROAD_ADMIN_USER: "xrd"
+  XROAD_ADMIN_PASSWORD: "secret"
+  XROAD_DB_PWD: "digitCoredb08"
+
